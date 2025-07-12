@@ -6,100 +6,153 @@
     <title>Сканер номеров самокатов</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
+        /* Базовые стили */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            background-color: #f0f2f5;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #f0f2f5 0%, #e0e6ed 100%);
             color: #333;
-        }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-        }
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            max-width: 1000px;
-            width: 100%;
-            justify-content: center;
-        }
-        .scanner-section, .list-section {
-            background-color: #ffffff;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            flex: 1;
-            min-width: 300px;
+            padding: 20px 10px; /* Отступы по бокам для мобильных */
             box-sizing: border-box;
         }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em; /* Адаптивный размер */
+            text-align: center;
+        }
+
+        /* Контейнер для секций сканера и списка */
+        .container {
+            display: grid;
+            grid-template-columns: 1fr; /* По умолчанию одна колонка для мобильных */
+            gap: 25px;
+            width: 100%;
+            max-width: 1000px; /* Максимальная ширина для больших экранов */
+        }
+
+        /* Секции сканера и списка */
+        .scanner-section, .list-section {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            padding: 25px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            color: #34495e;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            text-align: center;
+        }
+
+        /* Видеоэлемент сканера */
         video {
             width: 100%;
-            max-width: 400px;
+            max-width: 400px; /* Ограничение ширины для десктопа */
             height: auto;
-            border: 2px solid #3498db;
-            border-radius: 8px;
+            border: 3px solid #3498db;
+            border-radius: 10px;
             display: block;
-            margin: 0 auto 15px auto;
+            margin: 0 auto 20px auto;
+            background-color: #000; /* Черный фон для видео */
         }
+
         canvas {
-            display: none; /* Скрываем canvas, так как он используется для внутренней обработки */
+            display: none; /* Canvas остается скрытым */
         }
+
+        /* Статус сканирования */
         .scan-status {
-            margin-top: 10px;
+            margin-top: 15px;
             font-weight: bold;
+            font-size: 1.1em;
             color: #2ecc71;
             text-align: center;
         }
+
         .error-message {
             color: #e74c3c;
             margin-top: 10px;
             text-align: center;
+            font-size: 0.95em;
         }
+
+        /* Список номеров */
         ul {
             list-style: none;
             padding: 0;
-            max-height: 400px;
+            max-height: 350px; /* Ограничиваем высоту, чтобы был скролл */
             overflow-y: auto;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background-color: #fcfcfc;
+            margin-bottom: 20px;
         }
+
         li {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 15px;
-            border-bottom: 1px solid #eee;
+            padding: 12px 18px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 1.1em;
+            color: #555;
             word-break: break-all; /* Для длинных номеров */
         }
+
         li:last-child {
             border-bottom: none;
         }
+
+        li:nth-child(even) {
+            background-color: #f7f7f7; /* Чередующийся фон для лучшей читаемости */
+        }
+
+        /* Группа кнопок */
         .button-group {
             display: flex;
-            gap: 10px;
+            gap: 12px; /* Расстояние между кнопками */
             margin-top: 15px;
-            flex-wrap: wrap;
+            flex-wrap: wrap; /* Кнопки будут переноситься на новую строку на мобильных */
+            justify-content: center;
         }
+
         .action-button {
             background-color: #3498db;
             color: white;
             border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
+            padding: 12px 20px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.2s ease;
-            flex: 1; /* Чтобы кнопки занимали доступное место */
-            min-width: 150px; /* Минимальная ширина для кнопок */
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            font-size: 1em;
+            font-weight: bold;
+            flex: 1; /* Кнопки будут растягиваться */
+            min-width: 140px; /* Минимальная ширина для каждой кнопки */
             box-sizing: border-box;
         }
         .action-button:hover {
             background-color: #2980b9;
+            transform: translateY(-2px);
         }
+        .action-button:active {
+            transform: translateY(0);
+        }
+        .action-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Цвета для кнопок */
         .action-button.red {
             background-color: #e74c3c;
         }
@@ -111,6 +164,38 @@
         }
         .action-button.green:hover {
             background-color: #27ae60;
+        }
+
+        /* Медиа-запросы для адаптивности */
+        @media (min-width: 768px) {
+            /* На экранах шире 768px */
+            h1 {
+                font-size: 3em;
+            }
+            .container {
+                grid-template-columns: 1fr 1fr; /* Две колонки */
+            }
+            .button-group {
+                flex-wrap: nowrap; /* Кнопки остаются в одной строке */
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* Дополнительные стили для очень маленьких экранов */
+            h1 {
+                font-size: 2em;
+                margin-bottom: 20px;
+            }
+            h2 {
+                font-size: 1.5em;
+            }
+            .scanner-section, .list-section {
+                padding: 15px;
+            }
+            .action-button {
+                font-size: 0.9em;
+                padding: 10px 15px;
+            }
         }
     </style>
 </head>
@@ -172,13 +257,13 @@
                 return urentMatch[1];
             }
 
-            // Yandex Go: https://go.yandex/scooters?number=00167161 -> 00167161
+            // Yandex Go: https://go.yandex/scooters?number=(\d+) -> 00167161
             const yandexMatch = link.match(/go\.yandex\/scooters\?number=(\d+)/);
             if (yandexMatch && yandexMatch[1]) {
                 return yandexMatch[1];
             }
 
-            // Whoosh: https://whoosh.app.link/scooter?scooter_code=AM7784 -> AM7784
+            // Whoosh: https://whoosh.app.link/scooter?scooter_code=([a-zA-Z0-9]+) -> AM7784
             const whooshMatch = link.match(/whoosh\.app\.link\/scooter\?scooter_code=([a-zA-Z0-9]+)/);
             if (whooshMatch && whooshMatch[1]) {
                 return whooshMatch[1];
@@ -252,7 +337,7 @@
                 alert('Список номеров пуст, нечего отправлять.');
                 return;
             }
-            const textToSend = "Отсканированные номера самокатов:\n" + scannedNumbers.join('\n');
+            const textToSend = "Отсканированные номера самокатов:\n\n" + scannedNumbers.join('\n'); // Добавил двойной перенос для красоты
             // Кодируем текст для URL, чтобы он корректно передавался
             const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(textToSend)}`;
             window.open(telegramUrl, '_blank'); // Открываем Telegram в новой вкладке
