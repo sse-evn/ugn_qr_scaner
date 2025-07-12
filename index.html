@@ -193,6 +193,19 @@
         .action-button.green:hover {
             background-color: #27ae60;
         }
+        /* Стиль для кнопки вспышки */
+        .action-button.flash-button {
+            background-color: #f39c12; /* Оранжевый цвет для вспышки */
+        }
+        .action-button.flash-button:hover {
+            background-color: #e67e22;
+        }
+        .action-button.flash-button.on {
+            background-color: #2ecc71; /* Зеленый, когда вспышка включена */
+        }
+        .action-button.flash-button.on:hover {
+            background-color: #27ae60;
+        }
 
         .footer {
             margin-top: 40px;
@@ -211,6 +224,14 @@
             .button-group {
                 flex-wrap: nowrap;
             }
+            /* Добавляем кнопку вспышки в новую группу, чтобы не ломать текущие */
+            .scanner-controls {
+                display: flex;
+                gap: 12px;
+                margin-top: 15px;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
         }
 
         @media (max-width: 480px) {
@@ -228,6 +249,9 @@
                 font-size: 0.9em;
                 padding: 10px 15px;
             }
+            .scanner-controls {
+                flex-direction: column; /* Вертикально на маленьких экранах */
+            }
         }
     </style>
 </head>
@@ -241,6 +265,9 @@
             <canvas id="canvas"></canvas>
             <div id="scanStatus" class="scan-status">Ожидание сканирования...</div>
             <div id="errorMessage" class="error-message"></div>
+            <div class="scanner-controls">
+                <button id="flashButton" class="action-button flash-button" disabled>Включить вспышку</button>
+            </div>
         </div>
 
         <div class="list-section">
@@ -269,10 +296,14 @@
         const copyAllButton = document.getElementById('copyAllButton');
         const clearAllButton = document.getElementById('clearAllButton');
         const sendToTelegramButton = document.getElementById('sendToTelegramButton');
+        const flashButton = document.getElementById('flashButton'); // Новая кнопка вспышки
 
         let scannedNumbers = [];
         let isScanning = false;
-        let lastScannedCode = null; // Для предотвращения повторного добавления одного и того же кода сразу
+        let lastScannedCode = null;
+        let currentStream = null; // Для сохранения потока камеры
+        let track = null; // Для сохранения видеодорожки
+        let flashOn = false; // Состояние вспышки
 
         // Загрузка сохраненных номеров при старте
         function loadScannedNumbers() {
@@ -426,11 +457,54 @@
             }
         }
 
+        // --- Функции для управления вспышкой ---
+        async function toggleFlash() {
+            if (!track) {
+                errorMessage.textContent = 'Камера не активна или вспышка не поддерживается.';
+                return;
+            }
+
+            try {
+                // Проверяем, поддерживает ли трек вспышку
+                const capabilities = track.getCapabilities();
+                if (!capabilities.torch) {
+                    errorMessage.textContent = 'Вспышка не поддерживается на этом устройстве/браузере.';
+                    flashButton.disabled = true;
+                    return;
+                }
+
+                await track.applyConstraints({
+                    advanced: [{ torch: !flashOn }]
+                });
+                flashOn = !flashOn;
+                flashButton.textContent = flashOn ? 'Выключить вспышку' : 'Включить вспышку';
+                flashButton.classList.toggle('on', flashOn);
+                errorMessage.textContent = ''; // Очищаем сообщение об ошибке, если вспышка успешно переключена
+            } catch (err) {
+                console.error('Ошибка при переключении вспышки:', err);
+                errorMessage.textContent = `Ошибка при переключении вспышки: ${err.name || err.message}.`;
+                flashButton.disabled = true; // Отключаем кнопку, если есть постоянная ошибка
+            }
+        }
+        // --- Конец функций для управления вспышкой ---
+
         // Запуск камеры и процесса сканирования
         async function startScanner() {
             try {
                 // Запрашиваем доступ к камере, предпочитаем заднюю камеру (environment)
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                // Опция `torch: true` в `constraints` может попытаться включить вспышку сразу,
+                // но лучше управлять ей отдельно после получения потока.
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        // Дополнительные настройки для качества видео, если нужно
+                        // width: { ideal: 1280 },
+                        // height: { ideal: 720 }
+                    }
+                });
+                currentStream = stream; // Сохраняем поток
+                track = stream.getVideoTracks()[0]; // Получаем видеодорожку
+
                 video.srcObject = stream;
                 video.setAttribute('playsinline', true); // Важно для автовоспроизведения на iOS
                 await video.play();
@@ -439,11 +513,25 @@
                 scanStatus.textContent = 'Сканирование запущено... Наведите камеру на QR-код.';
                 scanStatus.style.color = '#3498db'; // Голубой для статуса ожидания
                 errorMessage.textContent = '';
+
+                // После успешного получения потока, проверяем поддержку вспышки
+                if (track.getCapabilities && track.getCapabilities().torch) {
+                    flashButton.disabled = false;
+                    flashButton.textContent = 'Включить вспышку';
+                    flashButton.classList.remove('on');
+                    flashOn = false;
+                } else {
+                    flashButton.disabled = true;
+                    flashButton.textContent = 'Вспышка не поддерживается';
+                    errorMessage.textContent = 'Ваше устройство или браузер не поддерживает управление вспышкой.';
+                }
+
             } catch (err) {
                 console.error("Ошибка доступа к камере:", err);
                 errorMessage.textContent = `Не удалось получить доступ к камере. Пожалуйста, убедитесь, что вы предоставили разрешение. Ошибка: ${err.name}`;
                 scanStatus.textContent = 'Ошибка сканирования.';
                 scanStatus.style.color = '#e74c3c';
+                flashButton.disabled = true;
             }
         }
 
@@ -484,6 +572,7 @@
         copyAllButton.addEventListener('click', copyAllNumbers);
         clearAllButton.addEventListener('click', clearAllScannedNumbers);
         sendToTelegramButton.addEventListener('click', sendToTelegram);
+        flashButton.addEventListener('click', toggleFlash); // Обработчик для кнопки вспышки
 
         // Обработчик для кнопок удаления отдельных элементов списка
         scannedNumbersList.addEventListener('click', (event) => {
@@ -492,7 +581,6 @@
                 removeScannedNumber(index);
             }
         });
-
 
         // Регистрация Service Worker для PWA (если у вас есть service-worker.js и manifest.json)
         if ('serviceWorker' in navigator) {
