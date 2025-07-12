@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сканер номеров самокатов</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1000px;
+            width: 100%;
+            justify-content: center;
+        }
+        .scanner-section, .list-section {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+            box-sizing: border-box;
+        }
+        video {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto 15px auto;
+        }
+        canvas {
+            display: none; /* Скрываем canvas, так как он используется для внутренней обработки */
+        }
+        .scan-status {
+            margin-top: 10px;
+            font-weight: bold;
+            color: #2ecc71;
+            text-align: center;
+        }
+        .error-message {
+            color: #e74c3c;
+            margin-top: 10px;
+            text-align: center;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        li:last-child {
+            border-bottom: none;
+        }
+        .copy-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            font-size: 0.9em;
+        }
+        .copy-button:hover {
+            background-color: #2980b9;
+        }
+        .clear-button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-top: 15px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .clear-button:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+    <h1>Сканер номеров самокатов</h1>
+
+    <div class="container">
+        <div class="scanner-section">
+            <h2>Сканировать QR-код</h2>
+            <video id="video" playsinline></video>
+            <canvas id="canvas"></canvas>
+            <div id="scanStatus" class="scan-status">Ожидание сканирования...</div>
+            <div id="errorMessage" class="error-message"></div>
+        </div>
+
+        <div class="list-section">
+            <h2>Отсканированные номера</h2>
+            <ul id="scannedNumbersList">
+                </ul>
+            <button id="clearListButton" class="clear-button">Очистить список</button>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvasElement = document.getElementById('canvas');
+        const canvasContext = canvasElement.getContext('2d');
+        const scanStatus = document.getElementById('scanStatus');
+        const errorMessage = document.getElementById('errorMessage');
+        const scannedNumbersList = document.getElementById('scannedNumbersList');
+        const clearListButton = document.getElementById('clearListButton');
+
+        let scannedNumbers = []; // Массив для хранения отсканированных номеров
+        let isScanning = false; // Флаг для управления циклом сканирования
+
+        // --- Функции для управления списком ---
+        function loadScannedNumbers() {
+            const storedNumbers = localStorage.getItem('scooterScannedNumbers');
+            if (storedNumbers) {
+                scannedNumbers = JSON.parse(storedNumbers);
+                updateScannedNumbersDisplay();
+            }
+        }
+
+        function saveScannedNumbers() {
+            localStorage.setItem('scooterScannedNumbers', JSON.stringify(scannedNumbers));
+        }
+
+        function updateScannedNumbersDisplay() {
+            scannedNumbersList.innerHTML = ''; // Очищаем список перед обновлением
+            if (scannedNumbers.length === 0) {
+                scannedNumbersList.innerHTML = '<li>Список пуст. Отсканируйте первый номер!</li>';
+            } else {
+                scannedNumbers.forEach(num => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = num;
+
+                    const copyButton = document.createElement('button');
+                    copyButton.textContent = 'Копировать';
+                    copyButton.className = 'copy-button';
+                    copyButton.onclick = () => {
+                        navigator.clipboard.writeText(num).then(() => {
+                            console.log('Номер скопирован:', num);
+                            alert(`Номер "${num}" скопирован!`);
+                        }).catch(err => {
+                            console.error('Не удалось скопировать номер:', err);
+                            alert('Ошибка при копировании номера.');
+                        });
+                    };
+                    listItem.appendChild(copyButton);
+                    scannedNumbersList.appendChild(listItem);
+                });
+            }
+        }
+
+        function addScannedNumber(number) {
+            // Проверяем, есть ли уже такой номер в списке
+            if (!scannedNumbers.includes(number)) {
+                scannedNumbers.unshift(number); // Добавляем новый номер в начало списка
+                saveScannedNumbers();
+                updateScannedNumbersDisplay();
+                scanStatus.textContent = `Отсканирован: ${number}`;
+                scanStatus.style.color = '#2ecc71';
+            } else {
+                scanStatus.textContent = `Номер "${number}" уже в списке.`;
+                scanStatus.style.color = '#f39c12'; // Желтый цвет для предупреждения
+            }
+        }
+
+        function clearAllScannedNumbers() {
+            if (confirm('Вы уверены, что хотите очистить весь список отсканированных номеров?')) {
+                scannedNumbers = [];
+                saveScannedNumbers();
+                updateScannedNumbersDisplay();
+                scanStatus.textContent = 'Список очищен.';
+                scanStatus.style.color = '#333';
+            }
+        }
+
+        // --- Функции для сканирования QR-кода ---
+        async function startScanner() {
+            try {
+                // Запрашиваем доступ к камере, предпочитая заднюю камеру на мобильных
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true); // Важно для iOS, чтобы видео воспроизводилось inline
+                video.play();
+                isScanning = true;
+                requestAnimationFrame(tick); // Запускаем цикл сканирования
+                scanStatus.textContent = 'Сканирование запущено... Наведите камеру на QR-код.';
+                errorMessage.textContent = ''; // Очищаем сообщения об ошибках
+            } catch (err) {
+                console.error("Ошибка доступа к камере:", err);
+                errorMessage.textContent = `Не удалось получить доступ к камере. Пожалуйста, убедитесь, что вы предоставили разрешение. Ошибка: ${err.name}`;
+                scanStatus.textContent = 'Ошибка сканирования.';
+                scanStatus.style.color = '#e74c3c';
+            }
+        }
+
+        function tick() {
+            if (!isScanning) return; // Остановить цикл, если сканирование выключено
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Устанавливаем размеры canvas по размерам видео
+                canvasElement.height = video.videoHeight;
+                canvasElement.width = video.videoWidth;
+                canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+
+                // Получаем данные изображения для jsQR
+                const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert", // Попробуйте изменить, если QR-коды не распознаются
+                });
+
+                if (code) {
+                    console.log("Найден QR-код:", code.data);
+                    // Добавляем отсканированный номер в список
+                    addScannedNumber(code.data);
+                }
+            }
+            requestAnimationFrame(tick); // Продолжаем сканирование в следующем кадре
+        }
+
+        // --- Инициализация при загрузке страницы ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadScannedNumbers(); // Загружаем сохраненные номера
+            startScanner(); // Запускаем сканер
+        });
+
+        // --- Обработчик для кнопки очистки списка ---
+        clearListButton.addEventListener('click', clearAllScannedNumbers);
+    </script>
+</body>
+</html>
