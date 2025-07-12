@@ -53,19 +53,37 @@
             text-align: center;
         }
 
-        video {
+        /* Container for video and canvas to layer them */
+        .video-container {
+            position: relative;
             width: 100%;
             max-width: 400px;
-            height: auto;
+            margin: 0 auto 20px auto;
             border: 3px solid #3498db;
             border-radius: 10px;
-            display: block;
-            margin: 0 auto 20px auto;
             background-color: #000;
+            overflow: hidden; /* Ensure anything drawn outside is clipped */
+        }
+
+        video {
+            display: block;
+            width: 100%;
+            height: auto;
+            transform: scaleX(-1); /* Mirror the video for front-facing camera feel if desired */
+            /* If facingMode is 'environment' (back camera), remove transform: scaleX(-1); */
         }
 
         canvas {
-            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Make canvas visible and transparent */
+            display: block; 
+            pointer-events: none; /* Allows clicks to pass through to video/elements underneath */
+            transform: scaleX(-1); /* Apply the same mirror effect if video is mirrored */
+            /* If video transform: scaleX(-1) is removed, remove this too */
         }
 
         .scan-status {
@@ -180,7 +198,6 @@
             background-color: #27ae60;
         }
 
-
         .footer {
             margin-top: 40px;
             font-size: 0.8em;
@@ -234,8 +251,10 @@
     <div class="container">
         <div class="scanner-section">
             <h2>Сканировать QR-код</h2>
-            <video id="video" playsinline></video>
-            <canvas id="canvas"></canvas>
+            <div class="video-container">
+                <video id="video" playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
             <div class="button-group" style="margin-bottom: 20px;">
                 <button id="toggleFlashButton" class="action-button toggle-flash" disabled><i class="fas fa-bolt"></i> Включить вспышку</button>
             </div>
@@ -270,6 +289,7 @@
         const clearAllButton = document.getElementById('clearAllButton');
         const sendToTelegramButton = document.getElementById('sendToTelegramButton');
         const toggleFlashButton = document.getElementById('toggleFlashButton');
+        const videoContainer = document.querySelector('.video-container'); // Get the new container
 
         let scannedNumbers = [];
         let isScanning = false;
@@ -281,7 +301,7 @@
         const USE_SCAN_SOUND = false;
         const USE_VIBRATION = false;
 
-        const scanSound = USE_SCAN_SOUND ? new Audio('./scan.mp3') : null; // Объект Audio создается только если USE_SCAN_SOUND = true
+        const scanSound = USE_SCAN_SOUND ? new Audio('./scan.mp3') : null;
 
         function loadScannedNumbers() {
             const storedNumbers = localStorage.getItem('scooterScannedNumbers');
@@ -401,18 +421,26 @@
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: 'environment',
-                        // Оптимизация разрешения для потенциального ускорения сканирования
-                        width: { ideal: 1280 },  // Попробуйте 640 или 1920 для других тестов
-                        height: { ideal: 720 }   // Попробуйте 480 или 1080 для других тестов
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
                 });
                 video.srcObject = mediaStream;
                 video.setAttribute('playsinline', true);
                 video.play();
                 isScanning = true;
-                requestAnimationFrame(tick);
                 scanStatus.textContent = 'Сканирование запущено... Наведите камеру на QR-код.';
                 errorMessage.textContent = '';
+
+                // Ensure canvas matches video dimensions for drawing
+                video.addEventListener('loadedmetadata', () => {
+                    canvasElement.width = video.videoWidth;
+                    canvasElement.height = video.videoHeight;
+                    // Adjust container to maintain aspect ratio and fit video
+                    videoContainer.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+                });
+
+                requestAnimationFrame(tick);
 
                 track = mediaStream.getVideoTracks()[0];
                 const capabilities = track.getCapabilities();
@@ -450,12 +478,25 @@
             }
         }
 
+        function drawLine(begin, end, color) {
+            canvasContext.beginPath();
+            canvasContext.moveTo(begin.x, begin.y);
+            canvasContext.lineTo(end.x, end.y);
+            canvasContext.lineWidth = 4; // Thicker line
+            canvasContext.strokeStyle = color;
+            canvasContext.stroke();
+        }
+
         function tick() {
             if (!isScanning) return;
 
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                canvasElement.height = video.videoHeight;
-                canvasElement.width = video.videoWidth;
+                // Clear the canvas before drawing the new frame
+                canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                // Draw the video frame onto the canvas (important for jsQR)
+                // We draw it invisibly, as the video element is now displayed directly
+                // This step is critical because jsQR reads from the canvas.
                 canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
 
                 const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
@@ -464,6 +505,12 @@
                 });
 
                 if (code) {
+                    // Draw bounding box if QR code is found
+                    drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
+                    drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
+                    drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
+                    drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
+
                     addScannedNumber(code.data);
                 }
             }
