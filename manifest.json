@@ -2,7 +2,7 @@
     "name": "Сканер Самокатов",
     "short_name": "Сканер Самокатов",
     "description": "Приложение для быстрого сканирования и сохранения номеров самокатов.",
-    "start_url": "./scooter_scanner.html",
+    "start_url": "./index.html",
     "display": "standalone",
     "background_color": "#e0e6ed",
     "theme_color": "#3498db",
