@@ -6,6 +6,7 @@
     <title>Сканер номеров самокатов</title>
     <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlroqP0bX+b7jP9E5yJz7t8r+1aU8mBw1c2P4+u+w+A3wG1P9kQ2l7kL8p4Tz9+C6qXN6z5Mz7oJ5mQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -133,6 +134,13 @@
             flex: 1;
             min-width: 140px;
             box-sizing: border-box;
+            display: flex; /* For icon alignment */
+            align-items: center; /* For icon alignment */
+            justify-content: center; /* For icon alignment */
+            gap: 8px; /* Space between icon and text */
+        }
+        .action-button i { /* Style for Font Awesome icons */
+            font-size: 1.2em;
         }
         .action-button:hover {
             background-color: #2980b9;
@@ -180,6 +188,16 @@
             text-align: center;
         }
 
+        .footer a {
+            color: #777;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
         @media (min-width: 768px) {
             h1 {
                 font-size: 3em;
@@ -219,7 +237,7 @@
             <video id="video" playsinline></video>
             <canvas id="canvas"></canvas>
             <div class="button-group" style="margin-bottom: 20px;">
-                <button id="toggleFlashButton" class="action-button toggle-flash" disabled>Включить вспышку</button>
+                <button id="toggleFlashButton" class="action-button toggle-flash" disabled><i class="fas fa-bolt"></i> Включить вспышку</button>
             </div>
             <div id="scanStatus" class="scan-status">Ожидание сканирования...</div>
             <div id="errorMessage" class="error-message"></div>
@@ -230,15 +248,15 @@
             <ul id="scannedNumbersList">
             </ul>
             <div class="button-group">
-                <button id="copyAllButton" class="action-button green">Копировать все номера</button>
-                <button id="clearAllButton" class="action-button red">Очистить весь список</button>
-                <button id="sendToTelegramButton" class="action-button">Отправить в Telegram</button>
+                <button id="copyAllButton" class="action-button green"><i class="fas fa-copy"></i> Копировать все</button>
+                <button id="clearAllButton" class="action-button red"><i class="fas fa-trash-alt"></i> Очистить все</button>
+                <button id="sendToTelegramButton" class="action-button"><i class="fab fa-telegram-plane"></i> Отправить в Telegram</button>
             </div>
         </div>
     </div>
 
     <div class="footer">
-        Разработано: sse_evn деп
+        Разработано: <a href="https://t.me/sse_evn" target="_blank" rel="noopener noreferrer">sse_evn деп</a>
     </div>
 
     <script>
@@ -258,6 +276,12 @@
         let mediaStream = null;
         let track = null;
         let isFlashOn = false;
+
+        // Отключено: Звук и Вибрация
+        const USE_SCAN_SOUND = false;
+        const USE_VIBRATION = false;
+
+        const scanSound = USE_SCAN_SOUND ? new Audio('./scan.mp3') : null; // Объект Audio создается только если USE_SCAN_SOUND = true
 
         function loadScannedNumbers() {
             const storedNumbers = localStorage.getItem('scooterScannedNumbers');
@@ -309,6 +333,18 @@
             }
         }
 
+        function playSound() {
+            if (USE_SCAN_SOUND && scanSound) {
+                scanSound.play().catch(e => console.warn("Failed to play sound:", e));
+            }
+        }
+
+        function vibrateDevice() {
+            if (USE_VIBRATION && navigator.vibrate) {
+                navigator.vibrate(200); // Vibrate for 200ms
+            }
+        }
+
         function addScannedNumber(rawCode) {
             const cleanedNumber = extractNumberFromLink(rawCode);
 
@@ -318,6 +354,8 @@
                 updateScannedNumbersDisplay();
                 scanStatus.textContent = `Отсканирован: ${cleanedNumber}`;
                 scanStatus.style.color = '#2ecc71';
+                playSound();
+                vibrateDevice();
             } else {
                 scanStatus.textContent = `Номер "${cleanedNumber}" уже в списке.`;
                 scanStatus.style.color = '#f39c12';
@@ -363,7 +401,9 @@
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: 'environment',
-                        torch: true // Request torch access
+                        // Оптимизация разрешения для потенциального ускорения сканирования
+                        width: { ideal: 1280 },  // Попробуйте 640 или 1920 для других тестов
+                        height: { ideal: 720 }   // Попробуйте 480 или 1080 для других тестов
                     }
                 });
                 video.srcObject = mediaStream;
@@ -375,11 +415,12 @@
                 errorMessage.textContent = '';
 
                 track = mediaStream.getVideoTracks()[0];
-                if ('getCapabilities' in track && 'torch' in track.getCapabilities()) {
+                const capabilities = track.getCapabilities();
+                if ('torch' in capabilities && capabilities.torch) {
                     toggleFlashButton.disabled = false;
                 } else {
                     toggleFlashButton.disabled = true;
-                    console.warn('Torch/flashlight is not supported on this device or browser.');
+                    console.warn('Torch/flashlight is not supported or controllable on this device or browser.');
                 }
             } catch (err) {
                 console.error("Ошибка доступа к камере:", err);
@@ -401,7 +442,7 @@
                     advanced: [{ torch: !isFlashOn }]
                 });
                 isFlashOn = !isFlashOn;
-                toggleFlashButton.textContent = isFlashOn ? 'Выключить вспышку' : 'Включить вспышку';
+                toggleFlashButton.innerHTML = isFlashOn ? '<i class="fas fa-bolt"></i> Выключить вспышку' : '<i class="fas fa-bolt"></i> Включить вспышку';
                 toggleFlashButton.classList.toggle('on', isFlashOn);
             } catch (err) {
                 console.error('Ошибка переключения вспышки:', err);
