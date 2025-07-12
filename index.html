@@ -333,7 +333,6 @@
                 alert('Список номеров пуст, нечего отправлять.');
                 return;
             }
-            // Изменено здесь: убрано "Отсканированные номера самокатов:"
             const textToSend = "Номера:\n\n" + scannedNumbers.join('\n');
             const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(textToSend)}`;
             window.open(telegramUrl, '_blank');
