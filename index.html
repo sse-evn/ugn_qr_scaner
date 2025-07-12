@@ -69,8 +69,9 @@
             display: block;
             width: 100%;
             height: auto;
-            transform: scaleX(-1); /* Mirror the video for front-facing camera feel if desired */
             /* If facingMode is 'environment' (back camera), remove transform: scaleX(-1); */
+            /* If you want a mirrored view (like a selfie camera but for back camera), keep it. */
+            /* transform: scaleX(-1); */
         }
 
         canvas {
@@ -82,8 +83,8 @@
             /* Make canvas visible and transparent */
             display: block; 
             pointer-events: none; /* Allows clicks to pass through to video/elements underneath */
-            transform: scaleX(-1); /* Apply the same mirror effect if video is mirrored */
-            /* If video transform: scaleX(-1) is removed, remove this too */
+            /* Apply the same mirror effect if video is mirrored */
+            /* transform: scaleX(-1); */
         }
 
         .scan-status {
@@ -289,7 +290,7 @@
         const clearAllButton = document.getElementById('clearAllButton');
         const sendToTelegramButton = document.getElementById('sendToTelegramButton');
         const toggleFlashButton = document.getElementById('toggleFlashButton');
-        const videoContainer = document.querySelector('.video-container'); // Get the new container
+        const videoContainer = document.querySelector('.video-container');
 
         let scannedNumbers = [];
         let isScanning = false;
