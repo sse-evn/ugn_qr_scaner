@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Сканер номеров самокатов</title>
+    <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        /* Базовые стили */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
@@ -16,27 +16,26 @@
             margin: 0;
             background: linear-gradient(135deg, #f0f2f5 0%, #e0e6ed 100%);
             color: #333;
-            padding: 20px 10px; /* Отступы по бокам для мобильных */
+            padding: 20px 10px;
             box-sizing: border-box;
         }
 
         h1 {
             color: #2c3e50;
             margin-bottom: 30px;
-            font-size: 2.5em; /* Адаптивный размер */
+            font-size: 2.5em;
             text-align: center;
         }
 
-        /* Контейнер для секций сканера и списка */
         .container {
             display: grid;
-            grid-template-columns: 1fr; /* По умолчанию одна колонка для мобильных */
+            grid-template-columns: 1fr;
             gap: 25px;
             width: 100%;
-            max-width: 1000px; /* Максимальная ширина для больших экранов */
+            max-width: 1000px;
+            justify-content: center;
         }
 
-        /* Секции сканера и списка */
         .scanner-section, .list-section {
             background-color: #ffffff;
             border-radius: 12px;
@@ -53,23 +52,21 @@
             text-align: center;
         }
 
-        /* Видеоэлемент сканера */
         video {
             width: 100%;
-            max-width: 400px; /* Ограничение ширины для десктопа */
+            max-width: 400px;
             height: auto;
             border: 3px solid #3498db;
             border-radius: 10px;
             display: block;
             margin: 0 auto 20px auto;
-            background-color: #000; /* Черный фон для видео */
+            background-color: #000;
         }
 
         canvas {
-            display: none; /* Canvas остается скрытым */
+            display: none;
         }
 
-        /* Статус сканирования */
         .scan-status {
             margin-top: 15px;
             font-weight: bold;
@@ -85,11 +82,10 @@
             font-size: 0.95em;
         }
 
-        /* Список номеров */
         ul {
             list-style: none;
             padding: 0;
-            max-height: 350px; /* Ограничиваем высоту, чтобы был скролл */
+            max-height: 350px;
             overflow-y: auto;
             border: 1px solid #e0e0e0;
             border-radius: 6px;
@@ -105,7 +101,7 @@
             border-bottom: 1px solid #f0f0f0;
             font-size: 1.1em;
             color: #555;
-            word-break: break-all; /* Для длинных номеров */
+            word-break: break-all;
         }
 
         li:last-child {
@@ -113,15 +109,14 @@
         }
 
         li:nth-child(even) {
-            background-color: #f7f7f7; /* Чередующийся фон для лучшей читаемости */
+            background-color: #f7f7f7;
         }
 
-        /* Группа кнопок */
         .button-group {
             display: flex;
-            gap: 12px; /* Расстояние между кнопками */
+            gap: 12px;
             margin-top: 15px;
-            flex-wrap: wrap; /* Кнопки будут переноситься на новую строку на мобильных */
+            flex-wrap: wrap;
             justify-content: center;
         }
 
@@ -135,8 +130,8 @@
             transition: background-color 0.3s ease, transform 0.1s ease;
             font-size: 1em;
             font-weight: bold;
-            flex: 1; /* Кнопки будут растягиваться */
-            min-width: 140px; /* Минимальная ширина для каждой кнопки */
+            flex: 1;
+            min-width: 140px;
             box-sizing: border-box;
         }
         .action-button:hover {
@@ -152,7 +147,6 @@
             transform: none;
         }
 
-        /* Цвета для кнопок */
         .action-button.red {
             background-color: #e74c3c;
         }
@@ -166,22 +160,26 @@
             background-color: #27ae60;
         }
 
-        /* Медиа-запросы для адаптивности */
+        .footer {
+            margin-top: 40px;
+            font-size: 0.8em;
+            color: #777;
+            text-align: center;
+        }
+
         @media (min-width: 768px) {
-            /* На экранах шире 768px */
             h1 {
                 font-size: 3em;
             }
             .container {
-                grid-template-columns: 1fr 1fr; /* Две колонки */
+                grid-template-columns: 1fr 1fr;
             }
             .button-group {
-                flex-wrap: nowrap; /* Кнопки остаются в одной строке */
+                flex-wrap: nowrap;
             }
         }
 
         @media (max-width: 480px) {
-            /* Дополнительные стили для очень маленьких экранов */
             h1 {
                 font-size: 2em;
                 margin-bottom: 20px;
@@ -214,13 +212,17 @@
         <div class="list-section">
             <h2>Отсканированные номера</h2>
             <ul id="scannedNumbersList">
-                </ul>
+            </ul>
             <div class="button-group">
                 <button id="copyAllButton" class="action-button green">Копировать все номера</button>
                 <button id="clearAllButton" class="action-button red">Очистить весь список</button>
                 <button id="sendToTelegramButton" class="action-button">Отправить в Telegram</button>
             </div>
         </div>
+    </div>
+
+    <div class="footer">
+        Разработано: sse_evn деп
     </div>
 
     <script>
@@ -234,10 +236,9 @@
         const clearAllButton = document.getElementById('clearAllButton');
         const sendToTelegramButton = document.getElementById('sendToTelegramButton');
 
-        let scannedNumbers = []; // Массив для хранения отсканированных номеров
-        let isScanning = false; // Флаг для управления циклом сканирования
+        let scannedNumbers = [];
+        let isScanning = false;
 
-        // --- Функции для управления списком ---
         function loadScannedNumbers() {
             const storedNumbers = localStorage.getItem('scooterScannedNumbers');
             if (storedNumbers) {
@@ -251,35 +252,31 @@
         }
 
         function extractNumberFromLink(link) {
-            // URENT: https://ure.su/j/s.250763 -> 250763
             const urentMatch = link.match(/ure\.su\/j\/s\.(\d+)/);
             if (urentMatch && urentMatch[1]) {
                 return urentMatch[1];
             }
 
-            // Yandex Go: https://go.yandex/scooters?number=(\d+) -> 00167161
             const yandexMatch = link.match(/go\.yandex\/scooters\?number=(\d+)/);
             if (yandexMatch && yandexMatch[1]) {
                 return yandexMatch[1];
             }
 
-            // Whoosh: https://whoosh.app.link/scooter?scooter_code=([a-zA-Z0-9]+) -> AM7784
             const whooshMatch = link.match(/whoosh\.app\.link\/scooter\?scooter_code=([a-zA-Z0-9]+)/);
             if (whooshMatch && whooshMatch[1]) {
                 return whooshMatch[1];
             }
 
-            // Если не найдено известного формата, возвращаем ссылку как есть
             return link;
         }
 
         function updateScannedNumbersDisplay() {
-            scannedNumbersList.innerHTML = ''; // Очищаем список перед обновлением
+            scannedNumbersList.innerHTML = '';
             if (scannedNumbers.length === 0) {
                 scannedNumbersList.innerHTML = '<li>Список пуст. Отсканируйте первый номер!</li>';
-                copyAllButton.disabled = true; // Отключаем кнопку копирования, если список пуст
-                clearAllButton.disabled = true; // Отключаем кнопку очистки
-                sendToTelegramButton.disabled = true; // Отключаем кнопку отправки в ТГ
+                copyAllButton.disabled = true;
+                clearAllButton.disabled = true;
+                sendToTelegramButton.disabled = true;
             } else {
                 scannedNumbers.forEach(num => {
                     const listItem = document.createElement('li');
@@ -295,16 +292,15 @@
         function addScannedNumber(rawCode) {
             const cleanedNumber = extractNumberFromLink(rawCode);
 
-            // Проверяем, есть ли уже такой номер в списке
             if (!scannedNumbers.includes(cleanedNumber)) {
-                scannedNumbers.unshift(cleanedNumber); // Добавляем новый номер в начало списка
+                scannedNumbers.unshift(cleanedNumber);
                 saveScannedNumbers();
                 updateScannedNumbersDisplay();
                 scanStatus.textContent = `Отсканирован: ${cleanedNumber}`;
                 scanStatus.style.color = '#2ecc71';
             } else {
                 scanStatus.textContent = `Номер "${cleanedNumber}" уже в списке.`;
-                scanStatus.style.color = '#f39c12'; // Желтый цвет для предупреждения
+                scanStatus.style.color = '#f39c12';
             }
         }
 
@@ -313,7 +309,7 @@
                 alert('Список номеров пуст, нечего копировать.');
                 return;
             }
-            const allNumbersText = scannedNumbers.join('\n'); // Соединяем все номера новой строкой
+            const allNumbersText = scannedNumbers.join('\n');
             navigator.clipboard.writeText(allNumbersText).then(() => {
                 alert('Все номера скопированы в буфер обмена!');
             }).catch(err => {
@@ -337,25 +333,21 @@
                 alert('Список номеров пуст, нечего отправлять.');
                 return;
             }
-            const textToSend = "Отсканированные номера самокатов:\n\n" + scannedNumbers.join('\n'); // Добавил двойной перенос для красоты
-            // Кодируем текст для URL, чтобы он корректно передавался
+            const textToSend = "Отсканированные номера самокатов:\n\n" + scannedNumbers.join('\n');
             const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(textToSend)}`;
-            window.open(telegramUrl, '_blank'); // Открываем Telegram в новой вкладке
+            window.open(telegramUrl, '_blank');
         }
 
-
-        // --- Функции для сканирования QR-кода ---
         async function startScanner() {
             try {
-                // Запрашиваем доступ к камере, предпочитая заднюю камеру на мобильных
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                 video.srcObject = stream;
-                video.setAttribute('playsinline', true); // Важно для iOS, чтобы видео воспроизводилось inline
+                video.setAttribute('playsinline', true);
                 video.play();
                 isScanning = true;
-                requestAnimationFrame(tick); // Запускаем цикл сканирования
+                requestAnimationFrame(tick);
                 scanStatus.textContent = 'Сканирование запущено... Наведите камеру на QR-код.';
-                errorMessage.textContent = ''; // Очищаем сообщения об ошибках
+                errorMessage.textContent = '';
             } catch (err) {
                 console.error("Ошибка доступа к камере:", err);
                 errorMessage.textContent = `Не удалось получить доступ к камере. Пожалуйста, убедитесь, что вы предоставили разрешение. Ошибка: ${err.name}`;
@@ -365,38 +357,45 @@
         }
 
         function tick() {
-            if (!isScanning) return; // Остановить цикл, если сканирование выключено
+            if (!isScanning) return;
 
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Устанавливаем размеры canvas по размерам видео
                 canvasElement.height = video.videoHeight;
                 canvasElement.width = video.videoWidth;
                 canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
 
-                // Получаем данные изображения для jsQR
                 const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert", // Попробуйте изменить, если QR-коды не распознаются
+                    inversionAttempts: "dontInvert",
                 });
 
                 if (code) {
-                    // code.data содержит отсканированный текст/ссылку
                     addScannedNumber(code.data);
                 }
             }
-            requestAnimationFrame(tick); // Продолжаем сканирование в следующем кадре
+            requestAnimationFrame(tick);
         }
 
-        // --- Инициализация при загрузке страницы ---
         document.addEventListener('DOMContentLoaded', () => {
-            loadScannedNumbers(); // Загружаем сохраненные номера
-            startScanner(); // Запускаем сканер
+            loadScannedNumbers();
+            startScanner();
         });
 
-        // --- Обработчики кнопок ---
         copyAllButton.addEventListener('click', copyAllNumbers);
         clearAllButton.addEventListener('click', clearAllScannedNumbers);
         sendToTelegramButton.addEventListener('click', sendToTelegram);
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker зарегистрирован успешно:', registration);
+                    })
+                    .catch(error => {
+                        console.error('Ошибка регистрации Service Worker:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>
