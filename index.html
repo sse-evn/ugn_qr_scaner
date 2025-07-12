@@ -6,7 +6,6 @@
     <title>Сканер номеров самокатов</title>
     <link rel="manifest" href="./manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlroqP0bX+b7jP9E5yJz7t8r+1aU8mBw1c2P4+u+w+A3wG1P9kQ2l7kL8p4Tz9+C6qXN6z5Mz7oJ5mQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -53,46 +52,43 @@
             text-align: center;
         }
 
-        /* Container for video and canvas to layer them */
-        .video-container {
-            position: relative;
+        video {
             width: 100%;
             max-width: 400px;
-            margin: 0 auto 20px auto;
+            height: auto;
             border: 3px solid #3498db;
             border-radius: 10px;
+            display: block;
+            margin: 0 auto 20px auto;
             background-color: #000;
-            overflow: hidden; /* Ensure anything drawn outside is clipped */
+            /* Добавляем мигающую рамку для имитации сканирования */
+            box-shadow: 0 0 15px rgba(52, 152, 219, 0.7);
+            animation: pulse-border 1.5s infinite alternate;
         }
 
-        video {
-            display: block;
-            width: 100%;
-            height: auto;
-            /* If facingMode is 'environment' (back camera), remove transform: scaleX(-1); */
-            /* If you want a mirrored view (like a selfie camera but for back camera), keep it. */
-            /* transform: scaleX(-1); */
+        @keyframes pulse-border {
+            from {
+                border-color: #3498db;
+                box-shadow: 0 0 15px rgba(52, 152, 219, 0.7);
+            }
+            to {
+                border-color: #2ecc71; /* Изменяем цвет при "импульсе" */
+                box-shadow: 0 0 25px rgba(46, 204, 113, 0.9);
+            }
         }
+
 
         canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            /* Make canvas visible and transparent */
-            display: block; 
-            pointer-events: none; /* Allows clicks to pass through to video/elements underneath */
-            /* Apply the same mirror effect if video is mirrored */
-            /* transform: scaleX(-1); */
+            display: none; /* Канвас используется только для обработки кадров, не для отображения */
         }
 
         .scan-status {
             margin-top: 15px;
             font-weight: bold;
             font-size: 1.1em;
-            color: #2ecc71;
+            color: #2ecc71; /* Изначально зеленый, для успешных сканирований */
             text-align: center;
+            min-height: 1.5em; /* Чтобы текст не "прыгал" */
         }
 
         .error-message {
@@ -100,6 +96,7 @@
             margin-top: 10px;
             text-align: center;
             font-size: 0.95em;
+            min-height: 1.5em; /* Чтобы текст не "прыгал" */
         }
 
         ul {
@@ -122,6 +119,7 @@
             font-size: 1.1em;
             color: #555;
             word-break: break-all;
+            position: relative; /* Для кнопки удаления */
         }
 
         li:last-child {
@@ -130,6 +128,22 @@
 
         li:nth-child(even) {
             background-color: #f7f7f7;
+        }
+
+        .remove-item-btn {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0 5px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .remove-item-btn:hover {
+            opacity: 1;
+            color: #c0392b;
         }
 
         .button-group {
@@ -153,13 +167,6 @@
             flex: 1;
             min-width: 140px;
             box-sizing: border-box;
-            display: flex; /* For icon alignment */
-            align-items: center; /* For icon alignment */
-            justify-content: center; /* For icon alignment */
-            gap: 8px; /* Space between icon and text */
-        }
-        .action-button i { /* Style for Font Awesome icons */
-            font-size: 1.2em;
         }
         .action-button:hover {
             background-color: #2980b9;
@@ -186,34 +193,12 @@
         .action-button.green:hover {
             background-color: #27ae60;
         }
-        .action-button.toggle-flash {
-            background-color: #f39c12; /* Orange color for flashlight button */
-        }
-        .action-button.toggle-flash:hover {
-            background-color: #e67e22;
-        }
-        .action-button.toggle-flash.on {
-            background-color: #2ecc71; /* Green when flash is on */
-        }
-        .action-button.toggle-flash.on:hover {
-            background-color: #27ae60;
-        }
 
         .footer {
             margin-top: 40px;
             font-size: 0.8em;
             color: #777;
             text-align: center;
-        }
-
-        .footer a {
-            color: #777;
-            text-decoration: none;
-            font-weight: bold;
-        }
-
-        .footer a:hover {
-            text-decoration: underline;
         }
 
         @media (min-width: 768px) {
@@ -252,13 +237,8 @@
     <div class="container">
         <div class="scanner-section">
             <h2>Сканировать QR-код</h2>
-            <div class="video-container">
-                <video id="video" playsinline></video>
-                <canvas id="canvas"></canvas>
-            </div>
-            <div class="button-group" style="margin-bottom: 20px;">
-                <button id="toggleFlashButton" class="action-button toggle-flash" disabled><i class="fas fa-bolt"></i> Включить вспышку</button>
-            </div>
+            <video id="video" playsinline></video>
+            <canvas id="canvas"></canvas>
             <div id="scanStatus" class="scan-status">Ожидание сканирования...</div>
             <div id="errorMessage" class="error-message"></div>
         </div>
@@ -266,17 +246,17 @@
         <div class="list-section">
             <h2>Номера</h2>
             <ul id="scannedNumbersList">
-            </ul>
+                </ul>
             <div class="button-group">
-                <button id="copyAllButton" class="action-button green"><i class="fas fa-copy"></i> Копировать все</button>
-                <button id="clearAllButton" class="action-button red"><i class="fas fa-trash-alt"></i> Очистить все</button>
-                <button id="sendToTelegramButton" class="action-button"><i class="fab fa-telegram-plane"></i> Отправить в Telegram</button>
+                <button id="copyAllButton" class="action-button green">Копировать все номера</button>
+                <button id="clearAllButton" class="action-button red">Очистить весь список</button>
+                <button id="sendToTelegramButton" class="action-button">Отправить в Telegram</button>
             </div>
         </div>
     </div>
 
     <div class="footer">
-        Разработано: <a href="https://t.me/sse_evn" target="_blank" rel="noopener noreferrer">sse_evn деп</a>
+        Разработано: sse_evn :)
     </div>
 
     <script>
@@ -289,21 +269,12 @@
         const copyAllButton = document.getElementById('copyAllButton');
         const clearAllButton = document.getElementById('clearAllButton');
         const sendToTelegramButton = document.getElementById('sendToTelegramButton');
-        const toggleFlashButton = document.getElementById('toggleFlashButton');
-        const videoContainer = document.querySelector('.video-container');
 
         let scannedNumbers = [];
         let isScanning = false;
-        let mediaStream = null;
-        let track = null;
-        let isFlashOn = false;
+        let lastScannedCode = null; // Для предотвращения повторного добавления одного и того же кода сразу
 
-        // Отключено: Звук и Вибрация
-        const USE_SCAN_SOUND = false;
-        const USE_VIBRATION = false;
-
-        const scanSound = USE_SCAN_SOUND ? new Audio('./scan.mp3') : null;
-
+        // Загрузка сохраненных номеров при старте
         function loadScannedNumbers() {
             const storedNumbers = localStorage.getItem('scooterScannedNumbers');
             if (storedNumbers) {
@@ -312,40 +283,56 @@
             }
         }
 
+        // Сохранение номеров в локальное хранилище
         function saveScannedNumbers() {
             localStorage.setItem('scooterScannedNumbers', JSON.stringify(scannedNumbers));
         }
 
+        // Извлечение номера самоката из различных форматов ссылок
         function extractNumberFromLink(link) {
-            const urentMatch = link.match(/ure\.su\/j\/s\.(\d+)/);
-            if (urentMatch && urentMatch[1]) {
-                return urentMatch[1];
-            }
-
-            const yandexMatch = link.match(/go\.yandex\/scooters\?number=(\d+)/);
-            if (yandexMatch && yandexMatch[1]) {
-                return yandexMatch[1];
-            }
-
+            // Whoosh
             const whooshMatch = link.match(/whoosh\.app\.link\/scooter\?scooter_code=([a-zA-Z0-9]+)/);
             if (whooshMatch && whooshMatch[1]) {
                 return whooshMatch[1];
             }
 
-            return link;
+            // Urent (пример: urent.su/j/s.123456)
+            const urentMatch = link.match(/ure\.su\/j\/s\.(\d+)/);
+            if (urentMatch && urentMatch[1]) {
+                return urentMatch[1];
+            }
+
+            // Yandex (пример: go.yandex/scooters?number=789012)
+            const yandexMatch = link.match(/go\.yandex\/scooters\?number=(\d+)/);
+            if (yandexMatch && yandexMatch[1]) {
+                return yandexMatch[1];
+            }
+
+            // Lite (пример: lite.app.link/scooters?id=ABCD12)
+            const liteMatch = link.match(/lite\.app\.link\/scooters\?id=([a-zA-Z0-9]+)/);
+            if (liteMatch && liteMatch[1]) {
+                return liteMatch[1];
+            }
+            
+            // Any other direct number or plain text
+            return link.trim(); // Удаляем пробелы по краям
         }
 
+        // Обновление отображения списка отсканированных номеров
         function updateScannedNumbersDisplay() {
             scannedNumbersList.innerHTML = '';
             if (scannedNumbers.length === 0) {
-                scannedNumbersList.innerHTML = '<li>Список пуст. Отсканируйте первый номер!</li>';
+                scannedNumbersList.innerHTML = '<li style="text-align: center; color: #777;">Список пуст. Отсканируйте первый номер!</li>';
                 copyAllButton.disabled = true;
                 clearAllButton.disabled = true;
                 sendToTelegramButton.disabled = true;
             } else {
-                scannedNumbers.forEach(num => {
+                scannedNumbers.forEach((num, index) => {
                     const listItem = document.createElement('li');
-                    listItem.textContent = num;
+                    listItem.innerHTML = `
+                        <span>${num}</span>
+                        <button class="remove-item-btn" data-index="${index}">&times;</button>
+                    `;
                     scannedNumbersList.appendChild(listItem);
                 });
                 copyAllButton.disabled = false;
@@ -354,35 +341,43 @@
             }
         }
 
-        function playSound() {
-            if (USE_SCAN_SOUND && scanSound) {
-                scanSound.play().catch(e => console.warn("Failed to play sound:", e));
-            }
-        }
-
-        function vibrateDevice() {
-            if (USE_VIBRATION && navigator.vibrate) {
-                navigator.vibrate(200); // Vibrate for 200ms
-            }
-        }
-
+        // Добавление отсканированного номера
         function addScannedNumber(rawCode) {
             const cleanedNumber = extractNumberFromLink(rawCode);
 
+            // Проверяем, что номер не пустой и не является ссылкой, которую не удалось распарсить
+            if (!cleanedNumber || cleanedNumber.startsWith('http')) {
+                scanStatus.textContent = `Не удалось распознать номер из "${rawCode.substring(0, 30)}..."`;
+                scanStatus.style.color = '#e74c3c';
+                return;
+            }
+
             if (!scannedNumbers.includes(cleanedNumber)) {
-                scannedNumbers.unshift(cleanedNumber);
+                scannedNumbers.unshift(cleanedNumber); // Добавляем в начало списка
                 saveScannedNumbers();
                 updateScannedNumbersDisplay();
                 scanStatus.textContent = `Отсканирован: ${cleanedNumber}`;
                 scanStatus.style.color = '#2ecc71';
-                playSound();
-                vibrateDevice();
             } else {
                 scanStatus.textContent = `Номер "${cleanedNumber}" уже в списке.`;
-                scanStatus.style.color = '#f39c12';
+                scanStatus.style.color = '#f39c12'; // Желтый для предупреждений
+            }
+            lastScannedCode = cleanedNumber; // Сохраняем последний отсканированный код
+            setTimeout(() => lastScannedCode = null, 2000); // Сбрасываем через 2 секунды
+        }
+
+        // Удаление номера из списка
+        function removeScannedNumber(index) {
+            if (index > -1 && index < scannedNumbers.length) {
+                scannedNumbers.splice(index, 1);
+                saveScannedNumbers();
+                updateScannedNumbersDisplay();
+                scanStatus.textContent = 'Номер удален.';
+                scanStatus.style.color = '#e74c3c';
             }
         }
 
+        // Копирование всех номеров в буфер обмена
         function copyAllNumbers() {
             if (scannedNumbers.length === 0) {
                 alert('Список номеров пуст, нечего копировать.');
@@ -393,12 +388,13 @@
                 alert('Все номера скопированы в буфер обмена!');
             }).catch(err => {
                 console.error('Не удалось скопировать все номера:', err);
-                alert('Ошибка при копировании всех номеров.');
+                alert('Ошибка при копировании всех номеров. Возможно, требуется HTTPS или разрешение браузера.');
             });
         }
 
+        // Очистка всего списка
         function clearAllScannedNumbers() {
-            if (confirm('Вы уверены, что хотите очистить весь список отсканированных номеров?')) {
+            if (confirm('Вы уверены, что хотите очистить весь список отсканированных номеров? Это действие необратимо.')) {
                 scannedNumbers = [];
                 saveScannedNumbers();
                 updateScannedNumbersDisplay();
@@ -407,127 +403,98 @@
             }
         }
 
+        // Отправка номеров в Telegram (открывает share-ссылку)
         function sendToTelegram() {
             if (scannedNumbers.length === 0) {
                 alert('Список номеров пуст, нечего отправлять.');
                 return;
             }
-            const textToSend = "Номера:\n\n" + scannedNumbers.join('\n');
-            const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(textToSend)}`;
-            window.open(telegramUrl, '_blank');
+            const textToSend = "Отсканированные номера самокатов:\n\n" + scannedNumbers.join('\n');
+            // Telegram Web Share API (лучше всего работает на мобильных устройствах)
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Номера самокатов',
+                    text: textToSend,
+                }).catch((error) => {
+                    console.error('Ошибка при использовании Web Share API:', error);
+                    alert('Не удалось отправить через Web Share API. Попробуйте скопировать и вставить вручную.');
+                });
+            } else {
+                // Фоллбэк для десктопов или браузеров без Web Share API
+                const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(textToSend)}`;
+                window.open(telegramUrl, '_blank');
+            }
         }
 
+        // Запуск камеры и процесса сканирования
         async function startScanner() {
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                });
-                video.srcObject = mediaStream;
-                video.setAttribute('playsinline', true);
-                video.play();
+                // Запрашиваем доступ к камере, предпочитаем заднюю камеру (environment)
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true); // Важно для автовоспроизведения на iOS
+                await video.play();
                 isScanning = true;
+                requestAnimationFrame(tick); // Запускаем цикл сканирования
                 scanStatus.textContent = 'Сканирование запущено... Наведите камеру на QR-код.';
+                scanStatus.style.color = '#3498db'; // Голубой для статуса ожидания
                 errorMessage.textContent = '';
-
-                // Ensure canvas matches video dimensions for drawing
-                video.addEventListener('loadedmetadata', () => {
-                    canvasElement.width = video.videoWidth;
-                    canvasElement.height = video.videoHeight;
-                    // Adjust container to maintain aspect ratio and fit video
-                    videoContainer.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
-                });
-
-                requestAnimationFrame(tick);
-
-                track = mediaStream.getVideoTracks()[0];
-                const capabilities = track.getCapabilities();
-                if ('torch' in capabilities && capabilities.torch) {
-                    toggleFlashButton.disabled = false;
-                } else {
-                    toggleFlashButton.disabled = true;
-                    console.warn('Torch/flashlight is not supported or controllable on this device or browser.');
-                }
             } catch (err) {
                 console.error("Ошибка доступа к камере:", err);
                 errorMessage.textContent = `Не удалось получить доступ к камере. Пожалуйста, убедитесь, что вы предоставили разрешение. Ошибка: ${err.name}`;
                 scanStatus.textContent = 'Ошибка сканирования.';
                 scanStatus.style.color = '#e74c3c';
-                toggleFlashButton.disabled = true;
             }
         }
 
-        async function toggleFlash() {
-            if (!track || !('torch' in track.getCapabilities())) {
-                console.warn('Torch/flashlight not available.');
+        // Цикл обработки кадров видео
+        function tick() {
+            if (!isScanning || video.paused || video.ended) {
                 return;
             }
 
-            try {
-                await track.applyConstraints({
-                    advanced: [{ torch: !isFlashOn }]
-                });
-                isFlashOn = !isFlashOn;
-                toggleFlashButton.innerHTML = isFlashOn ? '<i class="fas fa-bolt"></i> Выключить вспышку' : '<i class="fas fa-bolt"></i> Включить вспышку';
-                toggleFlashButton.classList.toggle('on', isFlashOn);
-            } catch (err) {
-                console.error('Ошибка переключения вспышки:', err);
-                alert('Не удалось переключить вспышку. Возможно, устройство не поддерживает эту функцию или есть другая проблема.');
-            }
-        }
-
-        function drawLine(begin, end, color) {
-            canvasContext.beginPath();
-            canvasContext.moveTo(begin.x, begin.y);
-            canvasContext.lineTo(end.x, end.y);
-            canvasContext.lineWidth = 4; // Thicker line
-            canvasContext.strokeStyle = color;
-            canvasContext.stroke();
-        }
-
-        function tick() {
-            if (!isScanning) return;
-
             if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // Clear the canvas before drawing the new frame
-                canvasContext.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-                // Draw the video frame onto the canvas (important for jsQR)
-                // We draw it invisibly, as the video element is now displayed directly
-                // This step is critical because jsQR reads from the canvas.
+                canvasElement.height = video.videoHeight;
+                canvasElement.width = video.videoWidth;
                 canvasContext.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
 
                 const imageData = canvasContext.getImageData(0, 0, canvasElement.width, canvasElement.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: "dontInvert",
+                    inversionAttempts: "dontInvert", // Попробуйте другие режимы, если есть проблемы с инвертированными кодами
                 });
 
                 if (code) {
-                    // Draw bounding box if QR code is found
-                    drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#FF3B58");
-                    drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#FF3B58");
-                    drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#FF3B58");
-                    drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#FF3B58");
-
-                    addScannedNumber(code.data);
+                    // Проверяем, не был ли этот код только что добавлен
+                    const extracted = extractNumberFromLink(code.data);
+                    if (extracted && extracted !== lastScannedCode) {
+                        addScannedNumber(code.data);
+                    }
                 }
             }
-            requestAnimationFrame(tick);
+            requestAnimationFrame(tick); // Продолжаем сканирование
         }
 
+        // Инициализация при загрузке страницы
         document.addEventListener('DOMContentLoaded', () => {
-            loadScannedNumbers();
-            startScanner();
+            loadScannedNumbers(); // Загружаем ранее отсканированные номера
+            startScanner(); // Запускаем камеру и сканер
         });
 
+        // Обработчики событий для кнопок
         copyAllButton.addEventListener('click', copyAllNumbers);
         clearAllButton.addEventListener('click', clearAllScannedNumbers);
         sendToTelegramButton.addEventListener('click', sendToTelegram);
-        toggleFlashButton.addEventListener('click', toggleFlash);
 
+        // Обработчик для кнопок удаления отдельных элементов списка
+        scannedNumbersList.addEventListener('click', (event) => {
+            if (event.target.classList.contains('remove-item-btn')) {
+                const index = parseInt(event.target.dataset.index);
+                removeScannedNumber(index);
+            }
+        });
+
+
+        // Регистрация Service Worker для PWA (если у вас есть service-worker.js и manifest.json)
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./service-worker.js')
