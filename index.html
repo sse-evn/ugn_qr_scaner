@@ -74,37 +74,43 @@
             align-items: center;
             padding: 10px 15px;
             border-bottom: 1px solid #eee;
+            word-break: break-all; /* Для длинных номеров */
         }
         li:last-child {
             border-bottom: none;
         }
-        .copy-button {
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .action-button {
             background-color: #3498db;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-            font-size: 0.9em;
-        }
-        .copy-button:hover {
-            background-color: #2980b9;
-        }
-        .clear-button {
-            background-color: #e74c3c;
             color: white;
             border: none;
             padding: 10px 15px;
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.2s ease;
-            margin-top: 15px;
-            width: 100%;
+            flex: 1; /* Чтобы кнопки занимали доступное место */
+            min-width: 150px; /* Минимальная ширина для кнопок */
             box-sizing: border-box;
         }
-        .clear-button:hover {
+        .action-button:hover {
+            background-color: #2980b9;
+        }
+        .action-button.red {
+            background-color: #e74c3c;
+        }
+        .action-button.red:hover {
             background-color: #c0392b;
+        }
+        .action-button.green {
+            background-color: #2ecc71;
+        }
+        .action-button.green:hover {
+            background-color: #27ae60;
         }
     </style>
 </head>
@@ -124,7 +130,11 @@
             <h2>Отсканированные номера</h2>
             <ul id="scannedNumbersList">
                 </ul>
-            <button id="clearListButton" class="clear-button">Очистить список</button>
+            <div class="button-group">
+                <button id="copyAllButton" class="action-button green">Копировать все номера</button>
+                <button id="clearAllButton" class="action-button red">Очистить весь список</button>
+                <button id="sendToTelegramButton" class="action-button">Отправить в Telegram</button>
+            </div>
         </div>
     </div>
 
@@ -135,7 +145,9 @@
         const scanStatus = document.getElementById('scanStatus');
         const errorMessage = document.getElementById('errorMessage');
         const scannedNumbersList = document.getElementById('scannedNumbersList');
-        const clearListButton = document.getElementById('clearListButton');
+        const copyAllButton = document.getElementById('copyAllButton');
+        const clearAllButton = document.getElementById('clearAllButton');
+        const sendToTelegramButton = document.getElementById('sendToTelegramButton');
 
         let scannedNumbers = []; // Массив для хранения отсканированных номеров
         let isScanning = false; // Флаг для управления циклом сканирования
@@ -153,45 +165,76 @@
             localStorage.setItem('scooterScannedNumbers', JSON.stringify(scannedNumbers));
         }
 
+        function extractNumberFromLink(link) {
+            // URENT: https://ure.su/j/s.250763 -> 250763
+            const urentMatch = link.match(/ure\.su\/j\/s\.(\d+)/);
+            if (urentMatch && urentMatch[1]) {
+                return urentMatch[1];
+            }
+
+            // Yandex Go: https://go.yandex/scooters?number=00167161 -> 00167161
+            const yandexMatch = link.match(/go\.yandex\/scooters\?number=(\d+)/);
+            if (yandexMatch && yandexMatch[1]) {
+                return yandexMatch[1];
+            }
+
+            // Whoosh: https://whoosh.app.link/scooter?scooter_code=AM7784 -> AM7784
+            const whooshMatch = link.match(/whoosh\.app\.link\/scooter\?scooter_code=([a-zA-Z0-9]+)/);
+            if (whooshMatch && whooshMatch[1]) {
+                return whooshMatch[1];
+            }
+
+            // Если не найдено известного формата, возвращаем ссылку как есть
+            return link;
+        }
+
         function updateScannedNumbersDisplay() {
             scannedNumbersList.innerHTML = ''; // Очищаем список перед обновлением
             if (scannedNumbers.length === 0) {
                 scannedNumbersList.innerHTML = '<li>Список пуст. Отсканируйте первый номер!</li>';
+                copyAllButton.disabled = true; // Отключаем кнопку копирования, если список пуст
+                clearAllButton.disabled = true; // Отключаем кнопку очистки
+                sendToTelegramButton.disabled = true; // Отключаем кнопку отправки в ТГ
             } else {
                 scannedNumbers.forEach(num => {
                     const listItem = document.createElement('li');
                     listItem.textContent = num;
-
-                    const copyButton = document.createElement('button');
-                    copyButton.textContent = 'Копировать';
-                    copyButton.className = 'copy-button';
-                    copyButton.onclick = () => {
-                        navigator.clipboard.writeText(num).then(() => {
-                            console.log('Номер скопирован:', num);
-                            alert(`Номер "${num}" скопирован!`);
-                        }).catch(err => {
-                            console.error('Не удалось скопировать номер:', err);
-                            alert('Ошибка при копировании номера.');
-                        });
-                    };
-                    listItem.appendChild(copyButton);
                     scannedNumbersList.appendChild(listItem);
                 });
+                copyAllButton.disabled = false;
+                clearAllButton.disabled = false;
+                sendToTelegramButton.disabled = false;
             }
         }
 
-        function addScannedNumber(number) {
+        function addScannedNumber(rawCode) {
+            const cleanedNumber = extractNumberFromLink(rawCode);
+
             // Проверяем, есть ли уже такой номер в списке
-            if (!scannedNumbers.includes(number)) {
-                scannedNumbers.unshift(number); // Добавляем новый номер в начало списка
+            if (!scannedNumbers.includes(cleanedNumber)) {
+                scannedNumbers.unshift(cleanedNumber); // Добавляем новый номер в начало списка
                 saveScannedNumbers();
                 updateScannedNumbersDisplay();
-                scanStatus.textContent = `Отсканирован: ${number}`;
+                scanStatus.textContent = `Отсканирован: ${cleanedNumber}`;
                 scanStatus.style.color = '#2ecc71';
             } else {
-                scanStatus.textContent = `Номер "${number}" уже в списке.`;
+                scanStatus.textContent = `Номер "${cleanedNumber}" уже в списке.`;
                 scanStatus.style.color = '#f39c12'; // Желтый цвет для предупреждения
             }
+        }
+
+        function copyAllNumbers() {
+            if (scannedNumbers.length === 0) {
+                alert('Список номеров пуст, нечего копировать.');
+                return;
+            }
+            const allNumbersText = scannedNumbers.join('\n'); // Соединяем все номера новой строкой
+            navigator.clipboard.writeText(allNumbersText).then(() => {
+                alert('Все номера скопированы в буфер обмена!');
+            }).catch(err => {
+                console.error('Не удалось скопировать все номера:', err);
+                alert('Ошибка при копировании всех номеров.');
+            });
         }
 
         function clearAllScannedNumbers() {
@@ -203,6 +246,18 @@
                 scanStatus.style.color = '#333';
             }
         }
+
+        function sendToTelegram() {
+            if (scannedNumbers.length === 0) {
+                alert('Список номеров пуст, нечего отправлять.');
+                return;
+            }
+            const textToSend = "Отсканированные номера самокатов:\n" + scannedNumbers.join('\n');
+            // Кодируем текст для URL, чтобы он корректно передавался
+            const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(textToSend)}`;
+            window.open(telegramUrl, '_blank'); // Открываем Telegram в новой вкладке
+        }
+
 
         // --- Функции для сканирования QR-кода ---
         async function startScanner() {
@@ -240,8 +295,7 @@
                 });
 
                 if (code) {
-                    console.log("Найден QR-код:", code.data);
-                    // Добавляем отсканированный номер в список
+                    // code.data содержит отсканированный текст/ссылку
                     addScannedNumber(code.data);
                 }
             }
@@ -254,8 +308,10 @@
             startScanner(); // Запускаем сканер
         });
 
-        // --- Обработчик для кнопки очистки списка ---
-        clearListButton.addEventListener('click', clearAllScannedNumbers);
+        // --- Обработчики кнопок ---
+        copyAllButton.addEventListener('click', copyAllNumbers);
+        clearAllButton.addEventListener('click', clearAllScannedNumbers);
+        sendToTelegramButton.addEventListener('click', sendToTelegram);
     </script>
 </body>
 </html>
