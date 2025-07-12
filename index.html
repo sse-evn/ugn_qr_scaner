@@ -210,7 +210,7 @@
         </div>
 
         <div class="list-section">
-            <h2>Отсканированные номера</h2>
+            <h2>Номера</h2>
             <ul id="scannedNumbersList">
             </ul>
             <div class="button-group">
@@ -222,7 +222,7 @@
     </div>
 
     <div class="footer">
-        Разработан: sse_evn 
+        Разработано: sse_evn деп
     </div>
 
     <script>
@@ -333,7 +333,8 @@
                 alert('Список номеров пуст, нечего отправлять.');
                 return;
             }
-            const textToSend = "Отсканированные номера самокатов:\n\n" + scannedNumbers.join('\n');
+            // Изменено здесь: убрано "Отсканированные номера самокатов:"
+            const textToSend = "Номера:\n\n" + scannedNumbers.join('\n');
             const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(textToSend)}`;
             window.open(telegramUrl, '_blank');
         }
