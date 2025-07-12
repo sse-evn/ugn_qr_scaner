@@ -159,6 +159,19 @@
         .action-button.green:hover {
             background-color: #27ae60;
         }
+        .action-button.toggle-flash {
+            background-color: #f39c12; /* Orange color for flashlight button */
+        }
+        .action-button.toggle-flash:hover {
+            background-color: #e67e22;
+        }
+        .action-button.toggle-flash.on {
+            background-color: #2ecc71; /* Green when flash is on */
+        }
+        .action-button.toggle-flash.on:hover {
+            background-color: #27ae60;
+        }
+
 
         .footer {
             margin-top: 40px;
@@ -205,6 +218,9 @@
             <h2>Сканировать QR-код</h2>
             <video id="video" playsinline></video>
             <canvas id="canvas"></canvas>
+            <div class="button-group" style="margin-bottom: 20px;">
+                <button id="toggleFlashButton" class="action-button toggle-flash" disabled>Включить вспышку</button>
+            </div>
             <div id="scanStatus" class="scan-status">Ожидание сканирования...</div>
             <div id="errorMessage" class="error-message"></div>
         </div>
@@ -222,7 +238,7 @@
     </div>
 
     <div class="footer">
-        Разработано: sse_evn :)
+        Разработано: sse_evn деп
     </div>
 
     <script>
@@ -235,9 +251,13 @@
         const copyAllButton = document.getElementById('copyAllButton');
         const clearAllButton = document.getElementById('clearAllButton');
         const sendToTelegramButton = document.getElementById('sendToTelegramButton');
+        const toggleFlashButton = document.getElementById('toggleFlashButton');
 
         let scannedNumbers = [];
         let isScanning = false;
+        let mediaStream = null;
+        let track = null;
+        let isFlashOn = false;
 
         function loadScannedNumbers() {
             const storedNumbers = localStorage.getItem('scooterScannedNumbers');
@@ -340,19 +360,52 @@
 
         async function startScanner() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                video.srcObject = stream;
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        torch: true // Request torch access
+                    }
+                });
+                video.srcObject = mediaStream;
                 video.setAttribute('playsinline', true);
                 video.play();
                 isScanning = true;
                 requestAnimationFrame(tick);
                 scanStatus.textContent = 'Сканирование запущено... Наведите камеру на QR-код.';
                 errorMessage.textContent = '';
+
+                track = mediaStream.getVideoTracks()[0];
+                if ('getCapabilities' in track && 'torch' in track.getCapabilities()) {
+                    toggleFlashButton.disabled = false;
+                } else {
+                    toggleFlashButton.disabled = true;
+                    console.warn('Torch/flashlight is not supported on this device or browser.');
+                }
             } catch (err) {
                 console.error("Ошибка доступа к камере:", err);
                 errorMessage.textContent = `Не удалось получить доступ к камере. Пожалуйста, убедитесь, что вы предоставили разрешение. Ошибка: ${err.name}`;
                 scanStatus.textContent = 'Ошибка сканирования.';
                 scanStatus.style.color = '#e74c3c';
+                toggleFlashButton.disabled = true;
+            }
+        }
+
+        async function toggleFlash() {
+            if (!track || !('torch' in track.getCapabilities())) {
+                console.warn('Torch/flashlight not available.');
+                return;
+            }
+
+            try {
+                await track.applyConstraints({
+                    advanced: [{ torch: !isFlashOn }]
+                });
+                isFlashOn = !isFlashOn;
+                toggleFlashButton.textContent = isFlashOn ? 'Выключить вспышку' : 'Включить вспышку';
+                toggleFlashButton.classList.toggle('on', isFlashOn);
+            } catch (err) {
+                console.error('Ошибка переключения вспышки:', err);
+                alert('Не удалось переключить вспышку. Возможно, устройство не поддерживает эту функцию или есть другая проблема.');
             }
         }
 
@@ -384,6 +437,7 @@
         copyAllButton.addEventListener('click', copyAllNumbers);
         clearAllButton.addEventListener('click', clearAllScannedNumbers);
         sendToTelegramButton.addEventListener('click', sendToTelegram);
+        toggleFlashButton.addEventListener('click', toggleFlash);
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
