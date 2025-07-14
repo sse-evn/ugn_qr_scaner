@@ -413,19 +413,22 @@
 
         // Копирование всех номеров в буфер обмена
         function copyAllNumbers() {
-            if (scannedNumbers.length === 0) {
-                alert('Список номеров пуст, нечего копировать.');
-                return;
-            }
-            const allNumbersText = scannedNumbers.join('\n');
-            navigator.clipboard.writeText(allNumbersText).then(() => {
-                alert('Все номера скопированы в буфер обмена!');
-            }).catch(err => {
-                console.error('Не удалось скопировать все номера:', err);
-                alert('Ошибка при копировании всех номеров. Возможно, требуется HTTPS или разрешение браузера.');
-            });
-        }
-
+    if (scannedNumbers.length === 0) {
+        alert('Список номеров пуст, нечего копировать.');
+        return;
+    }
+    const allNumbersText = scannedNumbers.join('\n');
+    navigator.clipboard.writeText(allNumbersText).then(() => {
+        const notification = document.getElementById('copy-notification');
+        notification.style.display = 'block';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 1500);
+    }).catch(err => {
+        console.error('Не удалось скопировать все номера:', err);
+        alert('Ошибка при копировании всех номеров. Возможно, требуется HTTPS или разрешение браузера.');
+    });
+}
         // Очистка всего списка
         function clearAllScannedNumbers() {
             if (confirm('Вы уверены, что хотите очистить весь список отсканированных номеров? Это действие необратимо.')) {
