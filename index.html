@@ -323,34 +323,40 @@
         }
 
         // Извлечение номера самоката из различных форматов ссылок
-        function extractNumberFromLink(link) {
-            // Whoosh
-            const whooshMatch = link.match(/whoosh\.app\.link\/scooter\?scooter_code=([a-zA-Z0-9]+)/);
-            if (whooshMatch && whooshMatch[1]) {
-                return whooshMatch[1];
-            }
+   function extractNumberFromLink(link) {
+    // Whoosh
+    const whooshMatch = link.match(/whoosh\.app\.link\/scooter\?scooter_code=([a-zA-Z0-9]+)/);
+    if (whooshMatch && whooshMatch[1]) {
+        return whooshMatch[1];
+    }
 
-            // Urent (пример: urent.su/j/s.123456)
-            const urentMatch = link.match(/ure\.su\/j\/s\.(\d+)/);
-            if (urentMatch && urentMatch[1]) {
-                return urentMatch[1];
-            }
+    // Urent
+    const urentMatch = link.match(/ure\.su\/j\/s\.(\d+)/);
+    if (urentMatch && urentMatch[1]) {
+        return urentMatch[1];
+    }
 
-            // Yandex (пример: go.yandex/scooters?number=789012)
-            const yandexMatch = link.match(/go\.yandex\/scooters\?number=(\d+)/);
-            if (yandexMatch && yandexMatch[1]) {
-                return yandexMatch[1];
-            }
+    // Yandex
+    const yandexMatch = link.match(/go\.yandex\/scooters\?number=(\d+)/);
+    if (yandexMatch && yandexMatch[1]) {
+        return yandexMatch[1];
+    }
 
-            // Lite (пример: lite.app.link/scooters?id=ABCD12)
-            const liteMatch = link.match(/lite\.app\.link\/scooters\?id=([a-zA-Z0-9]+)/);
-            if (liteMatch && liteMatch[1]) {
-                return liteMatch[1];
-            }
-            
-            // Any other direct number or plain text
-            return link.trim(); // Удаляем пробелы по краям
-        }
+    // Lite
+    const liteMatch = link.match(/lite\.app\.link\/scooters\?id=([a-zA-Z0-9]+)/);
+    if (liteMatch && liteMatch[1]) {
+        return liteMatch[1];
+    }
+
+    // Bolt (taxify)
+    const boltMatch = link.match(/scooters\.taxify\.eu\/qr\/([a-zA-Z0-9\-]+)/);
+    if (boltMatch && boltMatch[1]) {
+        return boltMatch[1];
+    }
+
+    // Любой другой текст
+    return link.trim();
+}
 
         // Обновление отображения списка отсканированных номеров
         function updateScannedNumbersDisplay() {
