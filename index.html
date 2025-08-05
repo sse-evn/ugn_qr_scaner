@@ -289,7 +289,9 @@
     Разработано: <a href="https://t.me/sse_evn" target="_blank">sse_evn</a> :)
 </div>
 
-    <script>
+    <script type="module">
+  import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics/+esm'
+  inject()
         const video = document.getElementById('video');
         const canvasElement = document.getElementById('canvas');
         const canvasContext = canvasElement.getContext('2d');
